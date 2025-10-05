@@ -1,323 +1,181 @@
-__all__ = ['op', 'kernel']
-
+'''
+OpenCV Python binary extension loader
+'''
+import os
+import importlib
 import sys
-import cv2 as cv
 
-# NB: Register function in specific module
-def register(mname):
-    def parameterized(func):
-        sys.modules[mname].__dict__[func.__name__] = func
-        return func
-    return parameterized
-
-
-@register('cv2.gapi')
-def networks(*args):
-    return cv.gapi_GNetPackage(list(map(cv.detail.strip, args)))
-
-
-@register('cv2.gapi')
-def compile_args(*args):
-    return list(map(cv.GCompileArg, args))
-
-
-@register('cv2')
-def GIn(*args):
-    return [*args]
-
-
-@register('cv2')
-def GOut(*args):
-    return [*args]
-
-
-@register('cv2')
-def gin(*args):
-    return [*args]
-
-
-@register('cv2.gapi')
-def descr_of(*args):
-    return [*args]
-
-
-@register('cv2')
-class GOpaque():
-    # NB: Inheritance from c++ class cause segfault.
-    # So just aggregate cv.GOpaqueT instead of inheritance
-    def __new__(cls, argtype):
-        return cv.GOpaqueT(argtype)
-
-    class Bool():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_BOOL)
-
-    class Int():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_INT)
-
-    class Int64():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_INT64)
-
-    class UInt64():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_UINT64)
-
-    class Double():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_DOUBLE)
-
-    class Float():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_FLOAT)
-
-    class String():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_STRING)
-
-    class Point():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_POINT)
-
-    class Point2f():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_POINT2F)
-
-    class Point3f():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_POINT3F)
-
-    class Size():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_SIZE)
-
-    class Rect():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_RECT)
-
-    class Prim():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_DRAW_PRIM)
-
-    class Any():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_ANY)
-
-@register('cv2')
-class GArray():
-    # NB: Inheritance from c++ class cause segfault.
-    # So just aggregate cv.GArrayT instead of inheritance
-    def __new__(cls, argtype):
-        return cv.GArrayT(argtype)
-
-    class Bool():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_BOOL)
-
-    class Int():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_INT)
-
-    class Int64():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_INT64)
-
-    class UInt64():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_UINT64)
-
-    class Double():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_DOUBLE)
-
-    class Float():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_FLOAT)
-
-    class String():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_STRING)
-
-    class Point():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_POINT)
-
-    class Point2f():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_POINT2F)
-
-    class Point3f():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_POINT3F)
-
-    class Size():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_SIZE)
-
-    class Rect():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_RECT)
-
-    class Scalar():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_SCALAR)
-
-    class Mat():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_MAT)
-
-    class GMat():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_GMAT)
-
-    class Prim():
-        def __new__(self):
-            return cv.GArray(cv.gapi.CV_DRAW_PRIM)
-
-    class Any():
-        def __new__(self):
-            return cv.GArray(cv.gapi.CV_ANY)
-
-
-# NB: Top lvl decorator takes arguments
-def op(op_id, in_types, out_types):
-
-    garray_types= {
-            cv.GArray.Bool:    cv.gapi.CV_BOOL,
-            cv.GArray.Int:     cv.gapi.CV_INT,
-            cv.GArray.Int64:   cv.gapi.CV_INT64,
-            cv.GArray.UInt64:  cv.gapi.CV_UINT64,
-            cv.GArray.Double:  cv.gapi.CV_DOUBLE,
-            cv.GArray.Float:   cv.gapi.CV_FLOAT,
-            cv.GArray.String:  cv.gapi.CV_STRING,
-            cv.GArray.Point:   cv.gapi.CV_POINT,
-            cv.GArray.Point2f: cv.gapi.CV_POINT2F,
-            cv.GArray.Point3f: cv.gapi.CV_POINT3F,
-            cv.GArray.Size:    cv.gapi.CV_SIZE,
-            cv.GArray.Rect:    cv.gapi.CV_RECT,
-            cv.GArray.Scalar:  cv.gapi.CV_SCALAR,
-            cv.GArray.Mat:     cv.gapi.CV_MAT,
-            cv.GArray.GMat:    cv.gapi.CV_GMAT,
-            cv.GArray.Prim:    cv.gapi.CV_DRAW_PRIM,
-            cv.GArray.Any:     cv.gapi.CV_ANY
-    }
-
-    gopaque_types= {
-            cv.GOpaque.Size:    cv.gapi.CV_SIZE,
-            cv.GOpaque.Rect:    cv.gapi.CV_RECT,
-            cv.GOpaque.Bool:    cv.gapi.CV_BOOL,
-            cv.GOpaque.Int:     cv.gapi.CV_INT,
-            cv.GOpaque.Int64:   cv.gapi.CV_INT64,
-            cv.GOpaque.UInt64:  cv.gapi.CV_UINT64,
-            cv.GOpaque.Double:  cv.gapi.CV_DOUBLE,
-            cv.GOpaque.Float:   cv.gapi.CV_FLOAT,
-            cv.GOpaque.String:  cv.gapi.CV_STRING,
-            cv.GOpaque.Point:   cv.gapi.CV_POINT,
-            cv.GOpaque.Point2f: cv.gapi.CV_POINT2F,
-            cv.GOpaque.Point3f: cv.gapi.CV_POINT3F,
-            cv.GOpaque.Size:    cv.gapi.CV_SIZE,
-            cv.GOpaque.Rect:    cv.gapi.CV_RECT,
-            cv.GOpaque.Prim:    cv.gapi.CV_DRAW_PRIM,
-            cv.GOpaque.Any:     cv.gapi.CV_ANY
-    }
-
-    type2str = {
-        cv.gapi.CV_BOOL:      'cv.gapi.CV_BOOL' ,
-        cv.gapi.CV_INT:       'cv.gapi.CV_INT' ,
-        cv.gapi.CV_INT64:     'cv.gapi.CV_INT64' ,
-        cv.gapi.CV_UINT64:    'cv.gapi.CV_UINT64' ,
-        cv.gapi.CV_DOUBLE:    'cv.gapi.CV_DOUBLE' ,
-        cv.gapi.CV_FLOAT:     'cv.gapi.CV_FLOAT' ,
-        cv.gapi.CV_STRING:    'cv.gapi.CV_STRING' ,
-        cv.gapi.CV_POINT:     'cv.gapi.CV_POINT' ,
-        cv.gapi.CV_POINT2F:   'cv.gapi.CV_POINT2F' ,
-        cv.gapi.CV_POINT3F:   'cv.gapi.CV_POINT3F' ,
-        cv.gapi.CV_SIZE:      'cv.gapi.CV_SIZE',
-        cv.gapi.CV_RECT:      'cv.gapi.CV_RECT',
-        cv.gapi.CV_SCALAR:    'cv.gapi.CV_SCALAR',
-        cv.gapi.CV_MAT:       'cv.gapi.CV_MAT',
-        cv.gapi.CV_GMAT:      'cv.gapi.CV_GMAT',
-        cv.gapi.CV_DRAW_PRIM: 'cv.gapi.CV_DRAW_PRIM'
-    }
-
-    # NB: Second lvl decorator takes class to decorate
-    def op_with_params(cls):
-        if not in_types:
-            raise Exception('{} operation should have at least one input!'.format(cls.__name__))
-
-        if not out_types:
-            raise Exception('{} operation should have at least one output!'.format(cls.__name__))
-
-        for i, t in enumerate(out_types):
-            if t not in [cv.GMat, cv.GScalar, *garray_types, *gopaque_types]:
-                   raise Exception('{} unsupported output type: {} in position: {}'
-                           .format(cls.__name__, t.__name__, i))
-
-        def on(*args):
-            if len(in_types) != len(args):
-                raise Exception('Invalid number of input elements!\nExpected: {}, Actual: {}'
-                        .format(len(in_types), len(args)))
-
-            for i, (t, a) in enumerate(zip(in_types, args)):
-                if t in garray_types:
-                    if not isinstance(a, cv.GArrayT):
-                        raise Exception("{} invalid type for argument {}.\nExpected: {}, Actual: {}"
-                                .format(cls.__name__, i, cv.GArrayT.__name__, type(a).__name__))
-
-                    elif a.type() != garray_types[t]:
-                        raise Exception("{} invalid GArrayT type for argument {}.\nExpected: {}, Actual: {}"
-                                .format(cls.__name__, i, type2str[garray_types[t]], type2str[a.type()]))
-
-                elif t in gopaque_types:
-                    if not isinstance(a, cv.GOpaqueT):
-                        raise Exception("{} invalid type for argument {}.\nExpected: {}, Actual: {}"
-                                .format(cls.__name__, i, cv.GOpaqueT.__name__, type(a).__name__))
-
-                    elif a.type() != gopaque_types[t]:
-                        raise Exception("{} invalid GOpaque type for argument {}.\nExpected: {}, Actual: {}"
-                                .format(cls.__name__, i, type2str[gopaque_types[t]], type2str[a.type()]))
-
-                else:
-                    if t != type(a):
-                        raise Exception('{} invalid input type for argument {}.\nExpected: {}, Actual: {}'
-                                .format(cls.__name__, i, t.__name__, type(a).__name__))
-
-            op = cv.gapi.__op(op_id, cls.outMeta, *args)
-
-            out_protos = []
-            for i, out_type in enumerate(out_types):
-                if out_type == cv.GMat:
-                    out_protos.append(op.getGMat())
-                elif out_type == cv.GScalar:
-                    out_protos.append(op.getGScalar())
-                elif out_type in gopaque_types:
-                    out_protos.append(op.getGOpaque(gopaque_types[out_type]))
-                elif out_type in garray_types:
-                    out_protos.append(op.getGArray(garray_types[out_type]))
-                else:
-                    raise Exception("""In {}: G-API operation can't produce the output with type: {} in position: {}"""
-                            .format(cls.__name__, out_type.__name__, i))
-
-            return tuple(out_protos) if len(out_protos) != 1 else out_protos[0]
-
-        # NB: Extend operation class
-        cls.id = op_id
-        cls.on = staticmethod(on)
-        return cls
-
-    return op_with_params
-
-
-def kernel(op_cls):
-    # NB: Second lvl decorator takes class to decorate
-    def kernel_with_params(cls):
-        # NB: Add new members to kernel class
-        cls.id      = op_cls.id
-        cls.outMeta = op_cls.outMeta
-        return cls
-
-    return kernel_with_params
-
-
-cv.gapi.wip.GStreamerPipeline = cv.gapi_wip_gst_GStreamerPipeline
+__all__ = []
+
+try:
+    import numpy
+    import numpy.core.multiarray
+except ImportError:
+    print('OpenCV bindings requires "numpy" package.')
+    print('Install it via command:')
+    print('    pip install numpy')
+    raise
+
+# TODO
+# is_x64 = sys.maxsize > 2**32
+
+
+def __load_extra_py_code_for_module(base, name, enable_debug_print=False):
+    module_name = "{}.{}".format(__name__, name)
+    export_module_name = "{}.{}".format(base, name)
+    native_module = sys.modules.pop(module_name, None)
+    try:
+        py_module = importlib.import_module(module_name)
+    except ImportError as err:
+        if enable_debug_print:
+            print("Can't load Python code for module:", module_name,
+                  ". Reason:", err)
+        # Extension doesn't contain extra py code
+        return False
+
+    if base in sys.modules and not hasattr(sys.modules[base], name):
+        setattr(sys.modules[base], name, py_module)
+    sys.modules[export_module_name] = py_module
+    # If it is C extension module it is already loaded by cv2 package
+    if native_module:
+        setattr(py_module, "_native", native_module)
+        for k, v in filter(lambda kv: not hasattr(py_module, kv[0]),
+                           native_module.__dict__.items()):
+            if enable_debug_print: print('    symbol({}): {} = {}'.format(name, k, v))
+            setattr(py_module, k, v)
+    return True
+
+
+def __collect_extra_submodules(enable_debug_print=False):
+    def modules_filter(module):
+        return all((
+             # module is not internal
+             not module.startswith("_"),
+             not module.startswith("python-"),
+             # it is not a file
+             os.path.isdir(os.path.join(_extra_submodules_init_path, module))
+        ))
+    if sys.version_info[0] < 3:
+        if enable_debug_print:
+            print("Extra submodules is loaded only for Python 3")
+        return []
+
+    __INIT_FILE_PATH = os.path.abspath(__file__)
+    _extra_submodules_init_path = os.path.dirname(__INIT_FILE_PATH)
+    return filter(modules_filter, os.listdir(_extra_submodules_init_path))
+
+
+def bootstrap():
+    import sys
+
+    import copy
+    save_sys_path = copy.copy(sys.path)
+
+    if hasattr(sys, 'OpenCV_LOADER'):
+        print(sys.path)
+        raise ImportError('ERROR: recursion is detected during loading of "cv2" binary extensions. Check OpenCV installation.')
+    sys.OpenCV_LOADER = True
+
+    DEBUG = False
+    if hasattr(sys, 'OpenCV_LOADER_DEBUG'):
+        DEBUG = True
+
+    import platform
+    if DEBUG: print('OpenCV loader: os.name="{}"  platform.system()="{}"'.format(os.name, str(platform.system())))
+
+    LOADER_DIR = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+
+    PYTHON_EXTENSIONS_PATHS = []
+    BINARIES_PATHS = []
+
+    g_vars = globals()
+    l_vars = locals().copy()
+
+    if sys.version_info[:2] < (3, 0):
+        from . load_config_py2 import exec_file_wrapper
+    else:
+        from . load_config_py3 import exec_file_wrapper
+
+    def load_first_config(fnames, required=True):
+        for fname in fnames:
+            fpath = os.path.join(LOADER_DIR, fname)
+            if not os.path.exists(fpath):
+                if DEBUG: print('OpenCV loader: config not found, skip: {}'.format(fpath))
+                continue
+            if DEBUG: print('OpenCV loader: loading config: {}'.format(fpath))
+            exec_file_wrapper(fpath, g_vars, l_vars)
+            return True
+        if required:
+            raise ImportError('OpenCV loader: missing configuration file: {}. Check OpenCV installation.'.format(fnames))
+
+    load_first_config(['config.py'], True)
+    load_first_config([
+        'config-{}.{}.py'.format(sys.version_info[0], sys.version_info[1]),
+        'config-{}.py'.format(sys.version_info[0])
+    ], True)
+
+    if DEBUG: print('OpenCV loader: PYTHON_EXTENSIONS_PATHS={}'.format(str(l_vars['PYTHON_EXTENSIONS_PATHS'])))
+    if DEBUG: print('OpenCV loader: BINARIES_PATHS={}'.format(str(l_vars['BINARIES_PATHS'])))
+
+    applySysPathWorkaround = False
+    if hasattr(sys, 'OpenCV_REPLACE_SYS_PATH_0'):
+        applySysPathWorkaround = True
+    else:
+        try:
+            BASE_DIR = os.path.dirname(LOADER_DIR)
+            if sys.path[0] == BASE_DIR or os.path.realpath(sys.path[0]) == BASE_DIR:
+                applySysPathWorkaround = True
+        except:
+            if DEBUG: print('OpenCV loader: exception during checking workaround for sys.path[0]')
+            pass  # applySysPathWorkaround is False
+
+    for p in reversed(l_vars['PYTHON_EXTENSIONS_PATHS']):
+        sys.path.insert(1 if not applySysPathWorkaround else 0, p)
+
+    if os.name == 'nt':
+        if sys.version_info[:2] >= (3, 8):  # https://github.com/python/cpython/pull/12302
+            for p in l_vars['BINARIES_PATHS']:
+                try:
+                    os.add_dll_directory(p)
+                except Exception as e:
+                    if DEBUG: print('Failed os.add_dll_directory(): '+ str(e))
+                    pass
+        os.environ['PATH'] = ';'.join(l_vars['BINARIES_PATHS']) + ';' + os.environ.get('PATH', '')
+        if DEBUG: print('OpenCV loader: PATH={}'.format(str(os.environ['PATH'])))
+    else:
+        # amending of LD_LIBRARY_PATH works for sub-processes only
+        os.environ['LD_LIBRARY_PATH'] = ':'.join(l_vars['BINARIES_PATHS']) + ':' + os.environ.get('LD_LIBRARY_PATH', '')
+
+    if DEBUG: print("Relink everything from native cv2 module to cv2 package")
+
+    py_module = sys.modules.pop("cv2")
+
+    native_module = importlib.import_module("cv2")
+
+    sys.modules["cv2"] = py_module
+    setattr(py_module, "_native", native_module)
+
+    for item_name, item in filter(lambda kv: kv[0] not in ("__file__", "__loader__", "__spec__",
+                                                           "__name__", "__package__"),
+                                  native_module.__dict__.items()):
+        if item_name not in g_vars:
+            g_vars[item_name] = item
+
+    sys.path = save_sys_path  # multiprocessing should start from bootstrap code (https://github.com/opencv/opencv/issues/18502)
+
+    try:
+        del sys.OpenCV_LOADER
+    except Exception as e:
+        if DEBUG:
+            print("Exception during delete OpenCV_LOADER:", e)
+
+    if DEBUG: print('OpenCV loader: binary extension... OK')
+
+    for submodule in __collect_extra_submodules(DEBUG):
+        if __load_extra_py_code_for_module("cv2", submodule, DEBUG):
+            if DEBUG: print("Extra Python code for", submodule, "is loaded")
+
+    if DEBUG: print('OpenCV loader: DONE')
+
+
+bootstrap()
