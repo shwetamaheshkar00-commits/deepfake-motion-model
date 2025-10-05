@@ -1,99 +1,60 @@
-Metadata-Version: 2.2
-Name: absl-py
-Version: 2.2.2
-Summary: Abseil Python Common Libraries, see https://github.com/abseil/abseil-py.
-Home-page: https://github.com/abseil/abseil-py
-Author: The Abseil Authors
-License: Apache 2.0
-Classifier: Programming Language :: Python
-Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: Python :: 3.8
-Classifier: Programming Language :: Python :: 3.9
-Classifier: Programming Language :: Python :: 3.10
-Classifier: Programming Language :: Python :: 3.11
-Classifier: Programming Language :: Python :: 3.12
-Classifier: Programming Language :: Python :: 3.13
-Classifier: Intended Audience :: Developers
-Classifier: Topic :: Software Development :: Libraries :: Python Modules
-Classifier: License :: OSI Approved :: Apache Software License
-Classifier: Operating System :: OS Independent
-Requires-Python: >=3.8
+Metadata-Version: 2.3
+Name: blinker
+Version: 1.9.0
+Summary: Fast, simple object-to-object and broadcast signaling
+Author: Jason Kirtland
+Maintainer-email: Pallets Ecosystem <contact@palletsprojects.com>
+Requires-Python: >=3.9
 Description-Content-Type: text/markdown
-License-File: LICENSE
-License-File: AUTHORS
-Dynamic: author
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: home-page
-Dynamic: license
-Dynamic: requires-python
-Dynamic: summary
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Typing :: Typed
+Project-URL: Chat, https://discord.gg/pallets
+Project-URL: Documentation, https://blinker.readthedocs.io
+Project-URL: Source, https://github.com/pallets-eco/blinker/
 
-# Abseil Python Common Libraries
+# Blinker
 
-This repository is a collection of Python library code for building Python
-applications. The code is collected from Google's own Python code base, and has
-been extensively tested and used in production.
+Blinker provides a fast dispatching system that allows any number of
+interested parties to subscribe to events, or "signals".
 
-## Features
 
-* Simple application startup
-* Distributed commandline flags system
-* Custom logging module with additional features
-* Testing utilities
+## Pallets Community Ecosystem
 
-## Getting Started
+> [!IMPORTANT]\
+> This project is part of the Pallets Community Ecosystem. Pallets is the open
+> source organization that maintains Flask; Pallets-Eco enables community
+> maintenance of related projects. If you are interested in helping maintain
+> this project, please reach out on [the Pallets Discord server][discord].
+>
+> [discord]: https://discord.gg/pallets
 
-### Installation
 
-To install the package, simply run:
+## Example
 
-```bash
-pip install absl-py
+Signal receivers can subscribe to specific senders or receive signals
+sent by any sender.
+
+```pycon
+>>> from blinker import signal
+>>> started = signal('round-started')
+>>> def each(round):
+...     print(f"Round {round}")
+...
+>>> started.connect(each)
+
+>>> def round_two(round):
+...     print("This is round two.")
+...
+>>> started.connect(round_two, sender=2)
+
+>>> for round in range(1, 4):
+...     started.send(round)
+...
+Round 1!
+Round 2!
+This is round two.
+Round 3!
 ```
 
-Or install from source:
-
-```bash
-python setup.py install
-```
-
-### Running Tests
-
-To run Abseil tests, you can clone the git repo and run
-[bazel](https://bazel.build/):
-
-```bash
-git clone https://github.com/abseil/abseil-py.git
-cd abseil-py
-bazel test absl/...
-```
-
-Please also validate the type annotations against the latest mypy:
-
-```bash
-pip install mypy
-mypy absl
-```
-
-### Example Code
-
-Please refer to
-[smoke_tests/sample_app.py](https://github.com/abseil/abseil-py/blob/main/smoke_tests/sample_app.py)
-as an example to get started.
-
-## Documentation
-
-See the [Abseil Python Developer Guide](https://abseil.io/docs/python/).
-
-## Future Releases
-
-The current repository includes an initial set of libraries for early adoption.
-More components and interoperability with Abseil C++ Common Libraries
-will come in future releases.
-
-## License
-
-The Abseil Python library is licensed under the terms of the Apache
-license. See [LICENSE](LICENSE) for more information.
