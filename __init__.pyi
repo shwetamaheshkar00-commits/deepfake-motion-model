@@ -1,263 +1,551 @@
-import sys
+__all__: list[str] = []
 
-from typing import (
-    Any,
-    Callable,
-    Mapping,
-    Sequence,
-    overload,
-    TypeVar,
-)
+import cv2
+import cv2.typing
+import typing as _typing
 
-# Because we need to type our own stuff, we have to make everything from
-# attr explicitly public too.
-from attr import __author__ as __author__
-from attr import __copyright__ as __copyright__
-from attr import __description__ as __description__
-from attr import __email__ as __email__
-from attr import __license__ as __license__
-from attr import __title__ as __title__
-from attr import __url__ as __url__
-from attr import __version__ as __version__
-from attr import __version_info__ as __version_info__
-from attr import assoc as assoc
-from attr import Attribute as Attribute
-from attr import AttrsInstance as AttrsInstance
-from attr import cmp_using as cmp_using
-from attr import converters as converters
-from attr import Converter as Converter
-from attr import evolve as evolve
-from attr import exceptions as exceptions
-from attr import Factory as Factory
-from attr import fields as fields
-from attr import fields_dict as fields_dict
-from attr import filters as filters
-from attr import has as has
-from attr import make_class as make_class
-from attr import NOTHING as NOTHING
-from attr import resolve_types as resolve_types
-from attr import setters as setters
-from attr import validate as validate
-from attr import validators as validators
-from attr import attrib, asdict as asdict, astuple as astuple
-from attr import NothingType as NothingType
 
-if sys.version_info >= (3, 11):
-    from typing import dataclass_transform
-else:
-    from typing_extensions import dataclass_transform
+# Enumerations
+FEATURE_SET_COMPUTE_10: int
+FEATURE_SET_COMPUTE_11: int
+FEATURE_SET_COMPUTE_12: int
+FEATURE_SET_COMPUTE_13: int
+FEATURE_SET_COMPUTE_20: int
+FEATURE_SET_COMPUTE_21: int
+FEATURE_SET_COMPUTE_30: int
+FEATURE_SET_COMPUTE_32: int
+FEATURE_SET_COMPUTE_35: int
+FEATURE_SET_COMPUTE_50: int
+GLOBAL_ATOMICS: int
+SHARED_ATOMICS: int
+NATIVE_DOUBLE: int
+WARP_SHUFFLE_FUNCTIONS: int
+DYNAMIC_PARALLELISM: int
+FeatureSet = int
+"""One of [FEATURE_SET_COMPUTE_10, FEATURE_SET_COMPUTE_11, FEATURE_SET_COMPUTE_12, FEATURE_SET_COMPUTE_13, FEATURE_SET_COMPUTE_20, FEATURE_SET_COMPUTE_21, FEATURE_SET_COMPUTE_30, FEATURE_SET_COMPUTE_32, FEATURE_SET_COMPUTE_35, FEATURE_SET_COMPUTE_50, GLOBAL_ATOMICS, SHARED_ATOMICS, NATIVE_DOUBLE, WARP_SHUFFLE_FUNCTIONS, DYNAMIC_PARALLELISM]"""
 
-_T = TypeVar("_T")
-_C = TypeVar("_C", bound=type)
 
-_EqOrderType = bool | Callable[[Any], Any]
-_ValidatorType = Callable[[Any, "Attribute[_T]", _T], Any]
-_CallableConverterType = Callable[[Any], Any]
-_ConverterType = _CallableConverterType | Converter[Any, Any]
-_ReprType = Callable[[Any], str]
-_ReprArgType = bool | _ReprType
-_OnSetAttrType = Callable[[Any, "Attribute[Any]", Any], Any]
-_OnSetAttrArgType = _OnSetAttrType | list[_OnSetAttrType] | setters._NoOpType
-_FieldTransformer = Callable[
-    [type, list["Attribute[Any]"]], list["Attribute[Any]"]
-]
-# FIXME: in reality, if multiple validators are passed they must be in a list
-# or tuple, but those are invariant and so would prevent subtypes of
-# _ValidatorType from working when passed in a list or tuple.
-_ValidatorArgType = _ValidatorType[_T] | Sequence[_ValidatorType[_T]]
+HostMem_PAGE_LOCKED: int
+HOST_MEM_PAGE_LOCKED: int
+HostMem_SHARED: int
+HOST_MEM_SHARED: int
+HostMem_WRITE_COMBINED: int
+HOST_MEM_WRITE_COMBINED: int
+HostMem_AllocType = int
+"""One of [HostMem_PAGE_LOCKED, HOST_MEM_PAGE_LOCKED, HostMem_SHARED, HOST_MEM_SHARED, HostMem_WRITE_COMBINED, HOST_MEM_WRITE_COMBINED]"""
 
-@overload
-def field(
-    *,
-    default: None = ...,
-    validator: None = ...,
-    repr: _ReprArgType = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    metadata: Mapping[Any, Any] | None = ...,
-    converter: None = ...,
-    factory: None = ...,
-    kw_only: bool = ...,
-    eq: bool | None = ...,
-    order: bool | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    alias: str | None = ...,
-    type: type | None = ...,
-) -> Any: ...
+Event_DEFAULT: int
+EVENT_DEFAULT: int
+Event_BLOCKING_SYNC: int
+EVENT_BLOCKING_SYNC: int
+Event_DISABLE_TIMING: int
+EVENT_DISABLE_TIMING: int
+Event_INTERPROCESS: int
+EVENT_INTERPROCESS: int
+Event_CreateFlags = int
+"""One of [Event_DEFAULT, EVENT_DEFAULT, Event_BLOCKING_SYNC, EVENT_BLOCKING_SYNC, Event_DISABLE_TIMING, EVENT_DISABLE_TIMING, Event_INTERPROCESS, EVENT_INTERPROCESS]"""
 
-# This form catches an explicit None or no default and infers the type from the
-# other arguments.
-@overload
-def field(
-    *,
-    default: None = ...,
-    validator: _ValidatorArgType[_T] | None = ...,
-    repr: _ReprArgType = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    metadata: Mapping[Any, Any] | None = ...,
-    converter: _ConverterType
-    | list[_ConverterType]
-    | tuple[_ConverterType]
-    | None = ...,
-    factory: Callable[[], _T] | None = ...,
-    kw_only: bool = ...,
-    eq: _EqOrderType | None = ...,
-    order: _EqOrderType | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    alias: str | None = ...,
-    type: type | None = ...,
-) -> _T: ...
+DeviceInfo_ComputeModeDefault: int
+DEVICE_INFO_COMPUTE_MODE_DEFAULT: int
+DeviceInfo_ComputeModeExclusive: int
+DEVICE_INFO_COMPUTE_MODE_EXCLUSIVE: int
+DeviceInfo_ComputeModeProhibited: int
+DEVICE_INFO_COMPUTE_MODE_PROHIBITED: int
+DeviceInfo_ComputeModeExclusiveProcess: int
+DEVICE_INFO_COMPUTE_MODE_EXCLUSIVE_PROCESS: int
+DeviceInfo_ComputeMode = int
+"""One of [DeviceInfo_ComputeModeDefault, DEVICE_INFO_COMPUTE_MODE_DEFAULT, DeviceInfo_ComputeModeExclusive, DEVICE_INFO_COMPUTE_MODE_EXCLUSIVE, DeviceInfo_ComputeModeProhibited, DEVICE_INFO_COMPUTE_MODE_PROHIBITED, DeviceInfo_ComputeModeExclusiveProcess, DEVICE_INFO_COMPUTE_MODE_EXCLUSIVE_PROCESS]"""
 
-# This form catches an explicit default argument.
-@overload
-def field(
-    *,
-    default: _T,
-    validator: _ValidatorArgType[_T] | None = ...,
-    repr: _ReprArgType = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    metadata: Mapping[Any, Any] | None = ...,
-    converter: _ConverterType
-    | list[_ConverterType]
-    | tuple[_ConverterType]
-    | None = ...,
-    factory: Callable[[], _T] | None = ...,
-    kw_only: bool = ...,
-    eq: _EqOrderType | None = ...,
-    order: _EqOrderType | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    alias: str | None = ...,
-    type: type | None = ...,
-) -> _T: ...
+SURF_CUDA_X_ROW: int
+SURF_CUDA_Y_ROW: int
+SURF_CUDA_LAPLACIAN_ROW: int
+SURF_CUDA_OCTAVE_ROW: int
+SURF_CUDA_SIZE_ROW: int
+SURF_CUDA_ANGLE_ROW: int
+SURF_CUDA_HESSIAN_ROW: int
+SURF_CUDA_ROWS_COUNT: int
+SURF_CUDA_KeypointLayout = int
+"""One of [SURF_CUDA_X_ROW, SURF_CUDA_Y_ROW, SURF_CUDA_LAPLACIAN_ROW, SURF_CUDA_OCTAVE_ROW, SURF_CUDA_SIZE_ROW, SURF_CUDA_ANGLE_ROW, SURF_CUDA_HESSIAN_ROW, SURF_CUDA_ROWS_COUNT]"""
 
-# This form covers type=non-Type: e.g. forward references (str), Any
-@overload
-def field(
-    *,
-    default: _T | None = ...,
-    validator: _ValidatorArgType[_T] | None = ...,
-    repr: _ReprArgType = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    metadata: Mapping[Any, Any] | None = ...,
-    converter: _ConverterType
-    | list[_ConverterType]
-    | tuple[_ConverterType]
-    | None = ...,
-    factory: Callable[[], _T] | None = ...,
-    kw_only: bool = ...,
-    eq: _EqOrderType | None = ...,
-    order: _EqOrderType | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    alias: str | None = ...,
-    type: type | None = ...,
-) -> Any: ...
-@overload
-@dataclass_transform(field_specifiers=(attrib, field))
-def define(
-    maybe_cls: _C,
-    *,
-    these: dict[str, Any] | None = ...,
-    repr: bool = ...,
-    unsafe_hash: bool | None = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    slots: bool = ...,
-    frozen: bool = ...,
-    weakref_slot: bool = ...,
-    str: bool = ...,
-    auto_attribs: bool = ...,
-    kw_only: bool = ...,
-    cache_hash: bool = ...,
-    auto_exc: bool = ...,
-    eq: bool | None = ...,
-    order: bool | None = ...,
-    auto_detect: bool = ...,
-    getstate_setstate: bool | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    field_transformer: _FieldTransformer | None = ...,
-    match_args: bool = ...,
-) -> _C: ...
-@overload
-@dataclass_transform(field_specifiers=(attrib, field))
-def define(
-    maybe_cls: None = ...,
-    *,
-    these: dict[str, Any] | None = ...,
-    repr: bool = ...,
-    unsafe_hash: bool | None = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    slots: bool = ...,
-    frozen: bool = ...,
-    weakref_slot: bool = ...,
-    str: bool = ...,
-    auto_attribs: bool = ...,
-    kw_only: bool = ...,
-    cache_hash: bool = ...,
-    auto_exc: bool = ...,
-    eq: bool | None = ...,
-    order: bool | None = ...,
-    auto_detect: bool = ...,
-    getstate_setstate: bool | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    field_transformer: _FieldTransformer | None = ...,
-    match_args: bool = ...,
-) -> Callable[[_C], _C]: ...
 
-mutable = define
+# Classes
+class GpuMat:
+    @property
+    def step(self) -> int: ...
 
-@overload
-@dataclass_transform(frozen_default=True, field_specifiers=(attrib, field))
-def frozen(
-    maybe_cls: _C,
-    *,
-    these: dict[str, Any] | None = ...,
-    repr: bool = ...,
-    unsafe_hash: bool | None = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    slots: bool = ...,
-    frozen: bool = ...,
-    weakref_slot: bool = ...,
-    str: bool = ...,
-    auto_attribs: bool = ...,
-    kw_only: bool = ...,
-    cache_hash: bool = ...,
-    auto_exc: bool = ...,
-    eq: bool | None = ...,
-    order: bool | None = ...,
-    auto_detect: bool = ...,
-    getstate_setstate: bool | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    field_transformer: _FieldTransformer | None = ...,
-    match_args: bool = ...,
-) -> _C: ...
-@overload
-@dataclass_transform(frozen_default=True, field_specifiers=(attrib, field))
-def frozen(
-    maybe_cls: None = ...,
-    *,
-    these: dict[str, Any] | None = ...,
-    repr: bool = ...,
-    unsafe_hash: bool | None = ...,
-    hash: bool | None = ...,
-    init: bool = ...,
-    slots: bool = ...,
-    frozen: bool = ...,
-    weakref_slot: bool = ...,
-    str: bool = ...,
-    auto_attribs: bool = ...,
-    kw_only: bool = ...,
-    cache_hash: bool = ...,
-    auto_exc: bool = ...,
-    eq: bool | None = ...,
-    order: bool | None = ...,
-    auto_detect: bool = ...,
-    getstate_setstate: bool | None = ...,
-    on_setattr: _OnSetAttrArgType | None = ...,
-    field_transformer: _FieldTransformer | None = ...,
-    match_args: bool = ...,
-) -> Callable[[_C], _C]: ...
+    # Classes
+    class Allocator:
+        ...
+
+
+    # Functions
+    @_typing.overload
+    def __init__(self, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, rows: int, cols: int, type: int, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, size: cv2.typing.Size, type: int, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, rows: int, cols: int, type: int, s: cv2.typing.Scalar, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, size: cv2.typing.Size, type: int, s: cv2.typing.Scalar, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, m: GpuMat) -> None: ...
+    @_typing.overload
+    def __init__(self, m: GpuMat, rowRange: cv2.typing.Range, colRange: cv2.typing.Range) -> None: ...
+    @_typing.overload
+    def __init__(self, m: GpuMat, roi: cv2.typing.Rect) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: cv2.typing.MatLike, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: GpuMat, allocator: GpuMat.Allocator = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: cv2.UMat, allocator: GpuMat.Allocator = ...) -> None: ...
+
+    @staticmethod
+    def defaultAllocator() -> GpuMat.Allocator: ...
+
+    @staticmethod
+    def setDefaultAllocator(allocator: GpuMat.Allocator) -> None: ...
+
+    @staticmethod
+    def getStdAllocator() -> GpuMat.Allocator: ...
+
+    @_typing.overload
+    def create(self, rows: int, cols: int, type: int) -> None: ...
+    @_typing.overload
+    def create(self, size: cv2.typing.Size, type: int) -> None: ...
+
+    def release(self) -> None: ...
+
+    def swap(self, mat: GpuMat) -> None: ...
+
+    @_typing.overload
+    def upload(self, arr: cv2.typing.MatLike) -> None: ...
+    @_typing.overload
+    def upload(self, arr: GpuMat) -> None: ...
+    @_typing.overload
+    def upload(self, arr: cv2.UMat) -> None: ...
+    @_typing.overload
+    def upload(self, arr: cv2.typing.MatLike, stream: Stream) -> None: ...
+    @_typing.overload
+    def upload(self, arr: GpuMat, stream: Stream) -> None: ...
+    @_typing.overload
+    def upload(self, arr: cv2.UMat, stream: Stream) -> None: ...
+
+    @_typing.overload
+    def download(self, dst: cv2.typing.MatLike | None = ...) -> cv2.typing.MatLike: ...
+    @_typing.overload
+    def download(self, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def download(self, dst: cv2.UMat | None = ...) -> cv2.UMat: ...
+    @_typing.overload
+    def download(self, stream: Stream, dst: cv2.typing.MatLike | None = ...) -> cv2.typing.MatLike: ...
+    @_typing.overload
+    def download(self, stream: Stream, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def download(self, stream: Stream, dst: cv2.UMat | None = ...) -> cv2.UMat: ...
+
+    def clone(self) -> GpuMat: ...
+
+    @_typing.overload
+    def copyTo(self, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def copyTo(self, stream: Stream, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def copyTo(self, mask: GpuMat, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def copyTo(self, mask: GpuMat, stream: Stream, dst: GpuMat | None = ...) -> GpuMat: ...
+
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, stream: Stream) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: cv2.typing.MatLike) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: GpuMat) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: cv2.UMat) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: cv2.typing.MatLike, stream: Stream) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: GpuMat, stream: Stream) -> GpuMat: ...
+    @_typing.overload
+    def setTo(self, s: cv2.typing.Scalar, mask: cv2.UMat, stream: Stream) -> GpuMat: ...
+
+    @_typing.overload
+    def convertTo(self, rtype: int, stream: Stream, dst: GpuMat | None = ...) -> GpuMat: ...
+    @_typing.overload
+    def convertTo(self, rtype: int, dst: GpuMat | None = ..., alpha: float = ..., beta: float = ...) -> GpuMat: ...
+    @_typing.overload
+    def convertTo(self, rtype: int, alpha: float, beta: float, stream: Stream, dst: GpuMat | None = ...) -> GpuMat: ...
+
+    def assignTo(self, m: GpuMat, type: int = ...) -> None: ...
+
+    def row(self, y: int) -> GpuMat: ...
+
+    def col(self, x: int) -> GpuMat: ...
+
+    @_typing.overload
+    def rowRange(self, startrow: int, endrow: int) -> GpuMat: ...
+    @_typing.overload
+    def rowRange(self, r: cv2.typing.Range) -> GpuMat: ...
+
+    @_typing.overload
+    def colRange(self, startcol: int, endcol: int) -> GpuMat: ...
+    @_typing.overload
+    def colRange(self, r: cv2.typing.Range) -> GpuMat: ...
+
+    def reshape(self, cn: int, rows: int = ...) -> GpuMat: ...
+
+    def locateROI(self, wholeSize: cv2.typing.Size, ofs: cv2.typing.Point) -> None: ...
+
+    def adjustROI(self, dtop: int, dbottom: int, dleft: int, dright: int) -> GpuMat: ...
+
+    def isContinuous(self) -> bool: ...
+
+    def elemSize(self) -> int: ...
+
+    def elemSize1(self) -> int: ...
+
+    def type(self) -> int: ...
+
+    def depth(self) -> int: ...
+
+    def channels(self) -> int: ...
+
+    def step1(self) -> int: ...
+
+    def size(self) -> cv2.typing.Size: ...
+
+    def empty(self) -> bool: ...
+
+    def cudaPtr(self) -> cv2.typing.IntPointer: ...
+
+    def updateContinuityFlag(self) -> None: ...
+
+
+class GpuData:
+    ...
+
+class GpuMatND:
+    ...
+
+class BufferPool:
+    # Functions
+    def __init__(self, stream: Stream) -> None: ...
+
+    @_typing.overload
+    def getBuffer(self, rows: int, cols: int, type: int) -> GpuMat: ...
+    @_typing.overload
+    def getBuffer(self, size: cv2.typing.Size, type: int) -> GpuMat: ...
+
+    def getAllocator(self) -> GpuMat.Allocator: ...
+
+
+class HostMem:
+    @property
+    def step(self) -> int: ...
+
+    # Functions
+    @_typing.overload
+    def __init__(self, alloc_type: HostMem_AllocType = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, rows: int, cols: int, type: int, alloc_type: HostMem_AllocType = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, size: cv2.typing.Size, type: int, alloc_type: HostMem_AllocType = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: cv2.typing.MatLike, alloc_type: HostMem_AllocType = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: GpuMat, alloc_type: HostMem_AllocType = ...) -> None: ...
+    @_typing.overload
+    def __init__(self, arr: cv2.UMat, alloc_type: HostMem_AllocType = ...) -> None: ...
+
+    def swap(self, b: HostMem) -> None: ...
+
+    def clone(self) -> HostMem: ...
+
+    def create(self, rows: int, cols: int, type: int) -> None: ...
+
+    def reshape(self, cn: int, rows: int = ...) -> HostMem: ...
+
+    def createMatHeader(self) -> cv2.typing.MatLike: ...
+
+    def isContinuous(self) -> bool: ...
+
+    def elemSize(self) -> int: ...
+
+    def elemSize1(self) -> int: ...
+
+    def type(self) -> int: ...
+
+    def depth(self) -> int: ...
+
+    def channels(self) -> int: ...
+
+    def step1(self) -> int: ...
+
+    def size(self) -> cv2.typing.Size: ...
+
+    def empty(self) -> bool: ...
+
+
+class Stream:
+    # Functions
+    @_typing.overload
+    def __init__(self) -> None: ...
+    @_typing.overload
+    def __init__(self, allocator: GpuMat.Allocator) -> None: ...
+    @_typing.overload
+    def __init__(self, cudaFlags: int) -> None: ...
+
+    def queryIfComplete(self) -> bool: ...
+
+    def waitForCompletion(self) -> None: ...
+
+    def waitEvent(self, event: Event) -> None: ...
+
+    @classmethod
+    def Null(cls) -> Stream: ...
+
+    def cudaPtr(self) -> cv2.typing.IntPointer: ...
+
+
+class Event:
+    # Functions
+    def __init__(self, flags: Event_CreateFlags = ...) -> None: ...
+
+    def record(self, stream: Stream = ...) -> None: ...
+
+    def queryIfComplete(self) -> bool: ...
+
+    def waitForCompletion(self) -> None: ...
+
+    @staticmethod
+    def elapsedTime(start: Event, end: Event) -> float: ...
+
+
+class TargetArchs:
+    # Functions
+    @staticmethod
+    def has(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasPtx(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasBin(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasEqualOrLessPtx(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasEqualOrGreater(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasEqualOrGreaterPtx(major: int, minor: int) -> bool: ...
+
+    @staticmethod
+    def hasEqualOrGreaterBin(major: int, minor: int) -> bool: ...
+
+
+class DeviceInfo:
+    # Functions
+    @_typing.overload
+    def __init__(self) -> None: ...
+    @_typing.overload
+    def __init__(self, device_id: int) -> None: ...
+
+    def deviceID(self) -> int: ...
+
+    def totalGlobalMem(self) -> int: ...
+
+    def sharedMemPerBlock(self) -> int: ...
+
+    def regsPerBlock(self) -> int: ...
+
+    def warpSize(self) -> int: ...
+
+    def memPitch(self) -> int: ...
+
+    def maxThreadsPerBlock(self) -> int: ...
+
+    def maxThreadsDim(self) -> cv2.typing.Vec3i: ...
+
+    def maxGridSize(self) -> cv2.typing.Vec3i: ...
+
+    def clockRate(self) -> int: ...
+
+    def totalConstMem(self) -> int: ...
+
+    def majorVersion(self) -> int: ...
+
+    def minorVersion(self) -> int: ...
+
+    def textureAlignment(self) -> int: ...
+
+    def texturePitchAlignment(self) -> int: ...
+
+    def multiProcessorCount(self) -> int: ...
+
+    def kernelExecTimeoutEnabled(self) -> bool: ...
+
+    def integrated(self) -> bool: ...
+
+    def canMapHostMemory(self) -> bool: ...
+
+    def computeMode(self) -> DeviceInfo_ComputeMode: ...
+
+    def maxTexture1D(self) -> int: ...
+
+    def maxTexture1DMipmap(self) -> int: ...
+
+    def maxTexture1DLinear(self) -> int: ...
+
+    def maxTexture2D(self) -> cv2.typing.Vec2i: ...
+
+    def maxTexture2DMipmap(self) -> cv2.typing.Vec2i: ...
+
+    def maxTexture2DLinear(self) -> cv2.typing.Vec3i: ...
+
+    def maxTexture2DGather(self) -> cv2.typing.Vec2i: ...
+
+    def maxTexture3D(self) -> cv2.typing.Vec3i: ...
+
+    def maxTextureCubemap(self) -> int: ...
+
+    def maxTexture1DLayered(self) -> cv2.typing.Vec2i: ...
+
+    def maxTexture2DLayered(self) -> cv2.typing.Vec3i: ...
+
+    def maxTextureCubemapLayered(self) -> cv2.typing.Vec2i: ...
+
+    def maxSurface1D(self) -> int: ...
+
+    def maxSurface2D(self) -> cv2.typing.Vec2i: ...
+
+    def maxSurface3D(self) -> cv2.typing.Vec3i: ...
+
+    def maxSurface1DLayered(self) -> cv2.typing.Vec2i: ...
+
+    def maxSurface2DLayered(self) -> cv2.typing.Vec3i: ...
+
+    def maxSurfaceCubemap(self) -> int: ...
+
+    def maxSurfaceCubemapLayered(self) -> cv2.typing.Vec2i: ...
+
+    def surfaceAlignment(self) -> int: ...
+
+    def concurrentKernels(self) -> bool: ...
+
+    def ECCEnabled(self) -> bool: ...
+
+    def pciBusID(self) -> int: ...
+
+    def pciDeviceID(self) -> int: ...
+
+    def pciDomainID(self) -> int: ...
+
+    def tccDriver(self) -> bool: ...
+
+    def asyncEngineCount(self) -> int: ...
+
+    def unifiedAddressing(self) -> bool: ...
+
+    def memoryClockRate(self) -> int: ...
+
+    def memoryBusWidth(self) -> int: ...
+
+    def l2CacheSize(self) -> int: ...
+
+    def maxThreadsPerMultiProcessor(self) -> int: ...
+
+    def queryMemory(self, totalMemory: int, freeMemory: int) -> None: ...
+
+    def freeMemory(self) -> int: ...
+
+    def totalMemory(self) -> int: ...
+
+    def isCompatible(self) -> bool: ...
+
+
+class SURF_CUDA:
+    @property
+    def hessianThreshold(self) -> float: ...
+    @property
+    def nOctaves(self) -> int: ...
+    @property
+    def nOctaveLayers(self) -> int: ...
+    @property
+    def extended(self) -> bool: ...
+    @property
+    def upright(self) -> bool: ...
+    @property
+    def keypointsRatio(self) -> float: ...
+
+    # Functions
+    @classmethod
+    def create(cls, _hessianThreshold: float, _nOctaves: int = ..., _nOctaveLayers: int = ..., _extended: bool = ..., _keypointsRatio: float = ..., _upright: bool = ...) -> SURF_CUDA: ...
+
+    def descriptorSize(self) -> int: ...
+
+    def defaultNorm(self) -> int: ...
+
+    def downloadKeypoints(self, keypointsGPU: GpuMat) -> _typing.Sequence[cv2.KeyPoint]: ...
+
+    def detect(self, img: GpuMat, mask: GpuMat, keypoints: GpuMat | None = ...) -> GpuMat: ...
+
+    def detectWithDescriptors(self, img: GpuMat, mask: GpuMat, keypoints: GpuMat | None = ..., descriptors: GpuMat | None = ..., useProvidedKeypoints: bool = ...) -> tuple[GpuMat, GpuMat]: ...
+
+
+
+# Functions
+@_typing.overload
+def createContinuous(rows: int, cols: int, type: int, arr: cv2.typing.MatLike | None = ...) -> cv2.typing.MatLike: ...
+@_typing.overload
+def createContinuous(rows: int, cols: int, type: int, arr: GpuMat | None = ...) -> GpuMat: ...
+@_typing.overload
+def createContinuous(rows: int, cols: int, type: int, arr: cv2.UMat | None = ...) -> cv2.UMat: ...
+
+@_typing.overload
+def createGpuMatFromCudaMemory(rows: int, cols: int, type: int, cudaMemoryAddress: int, step: int = ...) -> GpuMat: ...
+@_typing.overload
+def createGpuMatFromCudaMemory(size: cv2.typing.Size, type: int, cudaMemoryAddress: int, step: int = ...) -> GpuMat: ...
+
+@_typing.overload
+def ensureSizeIsEnough(rows: int, cols: int, type: int, arr: cv2.typing.MatLike | None = ...) -> cv2.typing.MatLike: ...
+@_typing.overload
+def ensureSizeIsEnough(rows: int, cols: int, type: int, arr: GpuMat | None = ...) -> GpuMat: ...
+@_typing.overload
+def ensureSizeIsEnough(rows: int, cols: int, type: int, arr: cv2.UMat | None = ...) -> cv2.UMat: ...
+
+def fastNlMeansDenoising(src: GpuMat, h: float, dst: GpuMat | None = ..., search_window: int = ..., block_size: int = ..., stream: Stream = ...) -> GpuMat: ...
+
+def fastNlMeansDenoisingColored(src: GpuMat, h_luminance: float, photo_render: float, dst: GpuMat | None = ..., search_window: int = ..., block_size: int = ..., stream: Stream = ...) -> GpuMat: ...
+
+def getCudaEnabledDeviceCount() -> int: ...
+
+def getDevice() -> int: ...
+
+def nonLocalMeans(src: GpuMat, h: float, dst: GpuMat | None = ..., search_window: int = ..., block_size: int = ..., borderMode: int = ..., stream: Stream = ...) -> GpuMat: ...
+
+def printCudaDeviceInfo(device: int) -> None: ...
+
+def printShortCudaDeviceInfo(device: int) -> None: ...
+
+def registerPageLocked(m: cv2.typing.MatLike) -> None: ...
+
+def resetDevice() -> None: ...
+
+def setBufferPoolConfig(deviceId: int, stackSize: int, stackCount: int) -> None: ...
+
+def setBufferPoolUsage(on: bool) -> None: ...
+
+def setDevice(device: int) -> None: ...
+
+def unregisterPageLocked(m: cv2.typing.MatLike) -> None: ...
+
+def wrapStream(cudaStreamMemoryAddress: int) -> Stream: ...
+
+
