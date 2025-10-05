@@ -1,298 +1,389 @@
-# Copyright 2017 The Abseil Authors.
+import enum
+import sys
+
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Mapping,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
+
+# `import X as X` is required to make these public
+from . import converters as converters
+from . import exceptions as exceptions
+from . import filters as filters
+from . import setters as setters
+from . import validators as validators
+from ._cmp import cmp_using as cmp_using
+from ._typing_compat import AttrsInstance_
+from ._version_info import VersionInfo
+from attrs import (
+    define as define,
+    field as field,
+    mutable as mutable,
+    frozen as frozen,
+    _EqOrderType,
+    _ValidatorType,
+    _ConverterType,
+    _ReprArgType,
+    _OnSetAttrType,
+    _OnSetAttrArgType,
+    _FieldTransformer,
+    _ValidatorArgType,
+)
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard, TypeAlias
+else:
+    from typing_extensions import TypeGuard, TypeAlias
+
+if sys.version_info >= (3, 11):
+    from typing import dataclass_transform
+else:
+    from typing_extensions import dataclass_transform
+
+__version__: str
+__version_info__: VersionInfo
+__title__: str
+__description__: str
+__url__: str
+__uri__: str
+__author__: str
+__email__: str
+__license__: str
+__copyright__: str
+
+_T = TypeVar("_T")
+_C = TypeVar("_C", bound=type)
+
+_FilterType = Callable[["Attribute[_T]", _T], bool]
+
+# We subclass this here to keep the protocol's qualified name clean.
+class AttrsInstance(AttrsInstance_, Protocol):
+    pass
+
+_A = TypeVar("_A", bound=type[AttrsInstance])
+
+class _Nothing(enum.Enum):
+    NOTHING = enum.auto()
+
+NOTHING = _Nothing.NOTHING
+NothingType: TypeAlias = Literal[_Nothing.NOTHING]
+
+# NOTE: Factory lies about its return type to make this possible:
+# `x: List[int] # = Factory(list)`
+# Work around mypy issue #4554 in the common case by using an overload.
+
+@overload
+def Factory(factory: Callable[[], _T]) -> _T: ...
+@overload
+def Factory(
+    factory: Callable[[Any], _T],
+    takes_self: Literal[True],
+) -> _T: ...
+@overload
+def Factory(
+    factory: Callable[[], _T],
+    takes_self: Literal[False],
+) -> _T: ...
+
+In = TypeVar("In")
+Out = TypeVar("Out")
+
+class Converter(Generic[In, Out]):
+    @overload
+    def __init__(self, converter: Callable[[In], Out]) -> None: ...
+    @overload
+    def __init__(
+        self,
+        converter: Callable[[In, AttrsInstance, Attribute], Out],
+        *,
+        takes_self: Literal[True],
+        takes_field: Literal[True],
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        converter: Callable[[In, Attribute], Out],
+        *,
+        takes_field: Literal[True],
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        converter: Callable[[In, AttrsInstance], Out],
+        *,
+        takes_self: Literal[True],
+    ) -> None: ...
+
+class Attribute(Generic[_T]):
+    name: str
+    default: _T | None
+    validator: _ValidatorType[_T] | None
+    repr: _ReprArgType
+    cmp: _EqOrderType
+    eq: _EqOrderType
+    order: _EqOrderType
+    hash: bool | None
+    init: bool
+    converter: Converter | None
+    metadata: dict[Any, Any]
+    type: type[_T] | None
+    kw_only: bool
+    on_setattr: _OnSetAttrType
+    alias: str | None
+
+    def evolve(self, **changes: Any) -> "Attribute[Any]": ...
+
+# NOTE: We had several choices for the annotation to use for type arg:
+# 1) Type[_T]
+#   - Pros: Handles simple cases correctly
+#   - Cons: Might produce less informative errors in the case of conflicting
+#     TypeVars e.g. `attr.ib(default='bad', type=int)`
+# 2) Callable[..., _T]
+#   - Pros: Better error messages than #1 for conflicting TypeVars
+#   - Cons: Terrible error messages for validator checks.
+#   e.g. attr.ib(type=int, validator=validate_str)
+#        -> error: Cannot infer function type argument
+# 3) type (and do all of the work in the mypy plugin)
+#   - Pros: Simple here, and we could customize the plugin with our own errors.
+#   - Cons: Would need to write mypy plugin code to handle all the cases.
+# We chose option #1.
+
+# `attr` lies about its return type to make the following possible:
+#     attr()    -> Any
+#     attr(8)   -> int
+#     attr(validator=<some callable>)  -> Whatever the callable expects.
+# This makes this type of assignments possible:
+#     x: int = attr(8)
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
-from typing import Any, Callable, Dict, IO, NoReturn, Optional, Tuple, TypeVar, Union
-
-from absl import flags
-
-# Logging levels.
-FATAL: int
-ERROR: int
-WARNING: int
-WARN: int  # Deprecated name.
-INFO: int
-DEBUG: int
-
-ABSL_LOGGING_PREFIX_REGEX: str
-
-LOGTOSTDERR: flags.FlagHolder[bool]
-ALSOLOGTOSTDERR: flags.FlagHolder[bool]
-LOG_DIR: flags.FlagHolder[str]
-VERBOSITY: flags.FlagHolder[int]
-LOGGER_LEVELS: flags.FlagHolder[Dict[str, str]]
-STDERRTHRESHOLD: flags.FlagHolder[str]
-SHOWPREFIXFORINFO: flags.FlagHolder[bool]
-
-
-def get_verbosity() -> int:
-  ...
-
-
-def set_verbosity(v: Union[int, str]) -> None:
-  ...
-
-
-def set_stderrthreshold(s: Union[int, str]) -> None:
-  ...
-
-
-# TODO(b/277607978): Provide actual args+kwargs shadowing stdlib's logging functions.
-def fatal(msg: Any, *args: Any, **kwargs: Any) -> NoReturn:
-  ...
-
-
-def error(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def warning(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def warn(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def info(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def debug(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def exception(msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def log_every_n(
-    level: int, msg: Any, n: int, *args: Any, use_call_stack: bool = ...
-) -> None:
-  ...
-
-
-def log_every_n_seconds(
-    level: int,
-    msg: Any,
-    n_seconds: float,
-    *args: Any,
-    use_call_stack: bool = ...
-) -> None:
-  ...
-
-
-def log_first_n(
-    level: int, msg: Any, n: int, *args: Any, use_call_stack: bool = ...
-) -> None:
-  ...
-
-
-def log_if(level: int, msg: Any, condition: Any, *args: Any) -> None:
-  ...
-
-
-def log(level: int, msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def vlog(level: int, msg: Any, *args: Any, **kwargs: Any) -> None:
-  ...
-
-
-def vlog_is_on(level: int) -> bool:
-  ...
-
-
-def flush() -> None:
-  ...
-
-
-def level_debug() -> bool:
-  ...
-
-
-def level_info() -> bool:
-  ...
-
-
-def level_warning() -> bool:
-  ...
-
-
-level_warn = level_warning  # Deprecated function.
-
-
-def level_error() -> bool:
-  ...
-
-
-def get_log_file_name(level: int = ...) -> str:
-  ...
-
-
-def find_log_dir_and_names(
-    program_name: Optional[str] = ..., log_dir: Optional[str] = ...
-) -> Tuple[str, str, str]:
-  ...
-
-
-def find_log_dir(log_dir: Optional[str] = ...) -> str:
-  ...
-
-
-def get_absl_log_prefix(record: logging.LogRecord) -> str:
-  ...
-
-
-_SkipLogT = TypeVar('_SkipLogT', str, Callable[..., Any])
-
-def skip_log_prefix(func: _SkipLogT) -> _SkipLogT:
-  ...
-
-
-_StreamT = TypeVar('_StreamT')
-
-
-class PythonHandler(logging.StreamHandler[_StreamT]):  # type: ignore[type-var]
-
-  def __init__(
-      self,
-      stream: Optional[_StreamT] = ...,
-      formatter: Optional[logging.Formatter] = ...,
-  ) -> None:
-    ...
-
-  def start_logging_to_file(
-      self, program_name: Optional[str] = ..., log_dir: Optional[str] = ...
-  ) -> None:
-    ...
-
-  def use_absl_log_file(
-      self, program_name: Optional[str] = ..., log_dir: Optional[str] = ...
-  ) -> None:
-    ...
-
-  def flush(self) -> None:
-    ...
-
-  def emit(self, record: logging.LogRecord) -> None:
-    ...
-
-  def close(self) -> None:
-    ...
-
-
-class ABSLHandler(logging.Handler):
-
-  def __init__(self, python_logging_formatter: PythonFormatter) -> None:
-    ...
-
-  def format(self, record: logging.LogRecord) -> str:
-    ...
-
-  def setFormatter(self, fmt) -> None:
-    ...
-
-  def emit(self, record: logging.LogRecord) -> None:
-    ...
-
-  def flush(self) -> None:
-    ...
-
-  def close(self) -> None:
-    ...
-
-  def handle(self, record: logging.LogRecord) -> bool:
-    ...
-
-  @property
-  def python_handler(self) -> PythonHandler:
-    ...
-
-  def activate_python_handler(self) -> None:
-    ...
-
-  def use_absl_log_file(
-      self, program_name: Optional[str] = ..., log_dir: Optional[str] = ...
-  ) -> None:
-    ...
-
-  def start_logging_to_file(self, program_name=None, log_dir=None) -> None:
-    ...
-
-
-class PythonFormatter(logging.Formatter):
-
-  def format(self, record: logging.LogRecord) -> str:
-    ...
-
-
-class ABSLLogger(logging.Logger):
-
-  def findCaller(
-      self, stack_info: bool = ..., stacklevel: int = ...
-  ) -> Tuple[str, int, str, Optional[str]]:
-    ...
-
-  def critical(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def fatal(self, msg: Any, *args: Any, **kwargs: Any) -> NoReturn:  # type: ignore[override]
-    ...
-
-  def error(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def warn(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def warning(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def info(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def debug(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def log(self, level: int, msg: Any, *args: Any, **kwargs: Any) -> None:
-    ...
-
-  def handle(self, record: logging.LogRecord) -> None:
-    ...
-
-  @classmethod
-  def register_frame_to_skip(
-      cls, file_name: str, function_name: str, line_number: Optional[int] = ...
-  ) -> None:
-    ...
-
-
-# NOTE: Returns None before _initialize called but shouldn't occur after import.
-def get_absl_logger() -> ABSLLogger:
-  ...
-
-
-# NOTE: Returns None before _initialize called but shouldn't occur after import.
-def get_absl_handler() -> ABSLHandler:
-  ...
-
-
-def use_python_logging(quiet: bool = ...) -> None:
-  ...
-
-
-def use_absl_handler() -> None:
-  ...
+# This form catches explicit None or no default but with no other arguments
+# returns Any.
+@overload
+def attrib(
+    default: None = ...,
+    validator: None = ...,
+    repr: _ReprArgType = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    metadata: Mapping[Any, Any] | None = ...,
+    type: None = ...,
+    converter: None = ...,
+    factory: None = ...,
+    kw_only: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    alias: str | None = ...,
+) -> Any: ...
+
+# This form catches an explicit None or no default and infers the type from the
+# other arguments.
+@overload
+def attrib(
+    default: None = ...,
+    validator: _ValidatorArgType[_T] | None = ...,
+    repr: _ReprArgType = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    metadata: Mapping[Any, Any] | None = ...,
+    type: type[_T] | None = ...,
+    converter: _ConverterType
+    | list[_ConverterType]
+    | tuple[_ConverterType]
+    | None = ...,
+    factory: Callable[[], _T] | None = ...,
+    kw_only: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    alias: str | None = ...,
+) -> _T: ...
+
+# This form catches an explicit default argument.
+@overload
+def attrib(
+    default: _T,
+    validator: _ValidatorArgType[_T] | None = ...,
+    repr: _ReprArgType = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    metadata: Mapping[Any, Any] | None = ...,
+    type: type[_T] | None = ...,
+    converter: _ConverterType
+    | list[_ConverterType]
+    | tuple[_ConverterType]
+    | None = ...,
+    factory: Callable[[], _T] | None = ...,
+    kw_only: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    alias: str | None = ...,
+) -> _T: ...
+
+# This form covers type=non-Type: e.g. forward references (str), Any
+@overload
+def attrib(
+    default: _T | None = ...,
+    validator: _ValidatorArgType[_T] | None = ...,
+    repr: _ReprArgType = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    metadata: Mapping[Any, Any] | None = ...,
+    type: object = ...,
+    converter: _ConverterType
+    | list[_ConverterType]
+    | tuple[_ConverterType]
+    | None = ...,
+    factory: Callable[[], _T] | None = ...,
+    kw_only: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    alias: str | None = ...,
+) -> Any: ...
+@overload
+@dataclass_transform(order_default=True, field_specifiers=(attrib, field))
+def attrs(
+    maybe_cls: _C,
+    these: dict[str, Any] | None = ...,
+    repr_ns: str | None = ...,
+    repr: bool = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    slots: bool = ...,
+    frozen: bool = ...,
+    weakref_slot: bool = ...,
+    str: bool = ...,
+    auto_attribs: bool = ...,
+    kw_only: bool = ...,
+    cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    auto_detect: bool = ...,
+    collect_by_mro: bool = ...,
+    getstate_setstate: bool | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    field_transformer: _FieldTransformer | None = ...,
+    match_args: bool = ...,
+    unsafe_hash: bool | None = ...,
+) -> _C: ...
+@overload
+@dataclass_transform(order_default=True, field_specifiers=(attrib, field))
+def attrs(
+    maybe_cls: None = ...,
+    these: dict[str, Any] | None = ...,
+    repr_ns: str | None = ...,
+    repr: bool = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    slots: bool = ...,
+    frozen: bool = ...,
+    weakref_slot: bool = ...,
+    str: bool = ...,
+    auto_attribs: bool = ...,
+    kw_only: bool = ...,
+    cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    auto_detect: bool = ...,
+    collect_by_mro: bool = ...,
+    getstate_setstate: bool | None = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    field_transformer: _FieldTransformer | None = ...,
+    match_args: bool = ...,
+    unsafe_hash: bool | None = ...,
+) -> Callable[[_C], _C]: ...
+def fields(cls: type[AttrsInstance]) -> Any: ...
+def fields_dict(cls: type[AttrsInstance]) -> dict[str, Attribute[Any]]: ...
+def validate(inst: AttrsInstance) -> None: ...
+def resolve_types(
+    cls: _A,
+    globalns: dict[str, Any] | None = ...,
+    localns: dict[str, Any] | None = ...,
+    attribs: list[Attribute[Any]] | None = ...,
+    include_extras: bool = ...,
+) -> _A: ...
+
+# TODO: add support for returning a proper attrs class from the mypy plugin
+# we use Any instead of _CountingAttr so that e.g. `make_class('Foo',
+# [attr.ib()])` is valid
+def make_class(
+    name: str,
+    attrs: list[str] | tuple[str, ...] | dict[str, Any],
+    bases: tuple[type, ...] = ...,
+    class_body: dict[str, Any] | None = ...,
+    repr_ns: str | None = ...,
+    repr: bool = ...,
+    cmp: _EqOrderType | None = ...,
+    hash: bool | None = ...,
+    init: bool = ...,
+    slots: bool = ...,
+    frozen: bool = ...,
+    weakref_slot: bool = ...,
+    str: bool = ...,
+    auto_attribs: bool = ...,
+    kw_only: bool = ...,
+    cache_hash: bool = ...,
+    auto_exc: bool = ...,
+    eq: _EqOrderType | None = ...,
+    order: _EqOrderType | None = ...,
+    collect_by_mro: bool = ...,
+    on_setattr: _OnSetAttrArgType | None = ...,
+    field_transformer: _FieldTransformer | None = ...,
+) -> type: ...
+
+# _funcs --
+
+# TODO: add support for returning TypedDict from the mypy plugin
+# FIXME: asdict/astuple do not honor their factory args. Waiting on one of
+# these:
+# https://github.com/python/mypy/issues/4236
+# https://github.com/python/typing/issues/253
+# XXX: remember to fix attrs.asdict/astuple too!
+def asdict(
+    inst: AttrsInstance,
+    recurse: bool = ...,
+    filter: _FilterType[Any] | None = ...,
+    dict_factory: type[Mapping[Any, Any]] = ...,
+    retain_collection_types: bool = ...,
+    value_serializer: Callable[[type, Attribute[Any], Any], Any] | None = ...,
+    tuple_keys: bool | None = ...,
+) -> dict[str, Any]: ...
+
+# TODO: add support for returning NamedTuple from the mypy plugin
+def astuple(
+    inst: AttrsInstance,
+    recurse: bool = ...,
+    filter: _FilterType[Any] | None = ...,
+    tuple_factory: type[Sequence[Any]] = ...,
+    retain_collection_types: bool = ...,
+) -> tuple[Any, ...]: ...
+def has(cls: type) -> TypeGuard[type[AttrsInstance]]: ...
+def assoc(inst: _T, **changes: Any) -> _T: ...
+def evolve(inst: _T, **changes: Any) -> _T: ...
+
+# _config --
+
+def set_run_validators(run: bool) -> None: ...
+def get_run_validators() -> bool: ...
+
+# aliases --
+
+s = attributes = attrs
+ib = attr = attrib
+dataclass = attrs  # Technically, partial(attrs, auto_attribs=True) ;)
