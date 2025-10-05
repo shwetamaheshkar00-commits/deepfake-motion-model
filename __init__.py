@@ -1,17 +1,14 @@
-from __future__ import annotations
+__all__ = ['FFI', 'VerificationError', 'VerificationMissing', 'CDefError',
+           'FFIError']
 
-from .base import ANY
-from .base import default_namespace
-from .base import NamedSignal
-from .base import Namespace
-from .base import Signal
-from .base import signal
+from .api import FFI
+from .error import CDefError, FFIError, VerificationError, VerificationMissing
+from .error import PkgConfigError
 
-__all__ = [
-    "ANY",
-    "default_namespace",
-    "NamedSignal",
-    "Namespace",
-    "Signal",
-    "signal",
-]
+__version__ = "1.17.1"
+__version_info__ = (1, 17, 1)
+
+# The verifier module file names are based on the CRC32 of a string that
+# contains the following version number.  It may be older than __version__
+# if nothing is clearly incompatible.
+__version_verifier_modules__ = "0.8.6"

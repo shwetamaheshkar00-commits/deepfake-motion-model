@@ -1,60 +1,40 @@
-Metadata-Version: 2.3
-Name: blinker
-Version: 1.9.0
-Summary: Fast, simple object-to-object and broadcast signaling
-Author: Jason Kirtland
-Maintainer-email: Pallets Ecosystem <contact@palletsprojects.com>
-Requires-Python: >=3.9
-Description-Content-Type: text/markdown
-Classifier: Development Status :: 5 - Production/Stable
-Classifier: License :: OSI Approved :: MIT License
+Metadata-Version: 2.1
+Name: cffi
+Version: 1.17.1
+Summary: Foreign Function Interface for Python calling C code.
+Home-page: http://cffi.readthedocs.org
+Author: Armin Rigo, Maciej Fijalkowski
+Author-email: python-cffi@googlegroups.com
+License: MIT
+Project-URL: Documentation, http://cffi.readthedocs.org/
+Project-URL: Source Code, https://github.com/python-cffi/cffi
+Project-URL: Issue Tracker, https://github.com/python-cffi/cffi/issues
+Project-URL: Changelog, https://cffi.readthedocs.io/en/latest/whatsnew.html
+Project-URL: Downloads, https://github.com/python-cffi/cffi/releases
+Project-URL: Contact, https://groups.google.com/forum/#!forum/python-cffi
 Classifier: Programming Language :: Python
-Classifier: Typing :: Typed
-Project-URL: Chat, https://discord.gg/pallets
-Project-URL: Documentation, https://blinker.readthedocs.io
-Project-URL: Source, https://github.com/pallets-eco/blinker/
-
-# Blinker
-
-Blinker provides a fast dispatching system that allows any number of
-interested parties to subscribe to events, or "signals".
-
-
-## Pallets Community Ecosystem
-
-> [!IMPORTANT]\
-> This project is part of the Pallets Community Ecosystem. Pallets is the open
-> source organization that maintains Flask; Pallets-Eco enables community
-> maintenance of related projects. If you are interested in helping maintain
-> this project, please reach out on [the Pallets Discord server][discord].
->
-> [discord]: https://discord.gg/pallets
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: License :: OSI Approved :: MIT License
+Requires-Python: >=3.8
+License-File: LICENSE
+Requires-Dist: pycparser
 
 
-## Example
+CFFI
+====
 
-Signal receivers can subscribe to specific senders or receive signals
-sent by any sender.
+Foreign Function Interface for Python calling C code.
+Please see the `Documentation <http://cffi.readthedocs.org/>`_.
 
-```pycon
->>> from blinker import signal
->>> started = signal('round-started')
->>> def each(round):
-...     print(f"Round {round}")
-...
->>> started.connect(each)
+Contact
+-------
 
->>> def round_two(round):
-...     print("This is round two.")
-...
->>> started.connect(round_two, sender=2)
-
->>> for round in range(1, 4):
-...     started.send(round)
-...
-Round 1!
-Round 2!
-This is round two.
-Round 3!
-```
-
+`Mailing list <https://groups.google.com/forum/#!forum/python-cffi>`_
